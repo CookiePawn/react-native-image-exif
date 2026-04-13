@@ -48,6 +48,45 @@ static NSString *stringifyExifValue(id value)
   return [value description];
 }
 
+static id normalizeExifValue(id value)
+{
+  if (value == nil || value == [NSNull null]) {
+    return nil;
+  }
+
+  if ([value isKindOfClass:[NSNumber class]]) {
+    return value;
+  }
+
+  if ([value isKindOfClass:[NSString class]]) {
+    NSString *s = (NSString *)value;
+    NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
+    formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+    NSNumber *n = [formatter numberFromString:s];
+    return n != nil ? n : s;
+  }
+
+  if ([value isKindOfClass:[NSArray class]]) {
+    NSArray *arr = (NSArray *)value;
+    NSMutableArray *out = [NSMutableArray arrayWithCapacity:arr.count];
+    for (id item in arr) {
+      id normalized = normalizeExifValue(item);
+      if (normalized != nil) {
+        [out addObject:normalized];
+      }
+    }
+    return out;
+  }
+
+  if ([value isKindOfClass:[NSDate class]] || [value isKindOfClass:[NSData class]]) {
+    NSString *s = stringifyExifValue(value);
+    return s.length > 0 ? s : nil;
+  }
+
+  NSString *fallback = [value description];
+  return fallback.length > 0 ? fallback : nil;
+}
+
 static double coordinateFromEXIFValue(id value, NSString *ref, BOOL isLatitude)
 {
   double coord = NAN;
@@ -117,9 +156,9 @@ static double coordinateFromEXIFValue(id value, NSString *ref, BOOL isLatitude)
     if (exif) {
       for (NSString *key in exif) {
         id raw = exif[key];
-        NSString *str = stringifyExifValue(raw);
-        if (str.length > 0) {
-          result[key] = str;
+        id normalized = normalizeExifValue(raw);
+        if (normalized != nil) {
+          result[key] = normalized;
         }
       }
     }
