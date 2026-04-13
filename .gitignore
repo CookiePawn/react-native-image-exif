@@ -1,0 +1,68 @@
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node / package managers
+node_modules/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Env files / secrets
+.env
+.env.*
+
+# Build outputs
+dist/
+build/
+lib/
+*.tgz
+*.zip
+
+# React Native
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+
+ios/build/
+ios/Pods/
+
+# Example app build artifacts
+example/node_modules/
+example/android/.gradle/
+example/android/build/
+example/android/app/build/
+example/android/local.properties
+example/android/.idea/
+example/ios/build/
+example/ios/Pods/
+
+# Metro / Watchman
+.metro-health-check*
+.watchmanconfig
+watchman.state
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# Misc
+*.swp
+*.swo
