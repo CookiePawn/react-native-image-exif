@@ -36,21 +36,6 @@ console.log(exif);
 
 ## 📊 Platform Data Comparison
 
-There are subtle differences in how iOS and Android represent EXIF data. Below is a comparison based on the same photo properties.
-
-### Data Format Differences
-
-| Tag Name | iOS Example | Android Example | Format Note |
-| :--- | :--- | :--- | :--- |
-| **ApertureValue** | `1.169925` (Number) | `"169/100"` (String) | Android returns rational strings. |
-| **FocalLength** | `5.7` (Number) | `"425/100"` (String) | Android returns rational strings. |
-| **GPS Latitude** | `37.342178` (Number) | `"37/1,20/1,313.../1000"` | iOS is decimal, Android is DMS. |
-| **GPS Longitude** | `127.107992` (Number) | `"127/1,6/1,290.../1000"` | iOS is decimal, Android is DMS. |
-| **ExifVersion** | `[2, 3, 2]` (Array) | `[2, 2, 0]` (Array) | Consistent as Array. |
-| **DateTime** | `"2026:04:13 16:37:31"` | `"2026:04:13 16:17:55"` | Consistent as String. |
-
----
-
 ### Field Support Matrix
 
 | Category | Tag Name | iOS | Android |
@@ -58,35 +43,74 @@ There are subtle differences in how iOS and Android represent EXIF data. Below i
 | **Camera** | `FNumber` | ✅ | ✅ |
 | | `ExposureTime` | ✅ | ✅ |
 | | `ISOSpeedRatings` | ✅ | ✅ |
-| | `LensModel` | ✅ | ❌ |
+| | `ApertureValue` | ✅ | ✅ |
+| | `FocalLength` | ✅ | ✅ |
+| | `FocalLengthIn35mmFilm` | ❌ | ✅ |
+| | `FocalLenIn35mmFilm` | ✅ | ❌ |
+| | `ExposureProgram` | ✅ | ✅ |
+| | `MeteringMode` | ✅ | ✅ |
 | | `Flash` | ✅ | ✅ |
-| **Location** | `latitude` / `longitude` | ✅ | ✅ |
+| | `LensModel` | ✅ | ❌ |
+| | `LensMake` | ✅ | ❌ |
+| | `LensSpecification` | ✅ | ❌ |
+| | `ExposureMode` | ✅ | ❌ |
+| | `ExposureBiasValue` | ✅ | ❌ |
+| | `BrightnessValue` | ✅ | ❌ |
+| | `LightSource` | ❌ | ✅ |
+| | `MaxApertureValue` | ❌ | ✅ |
+| **Location** | `latitude` | ✅ | ✅ |
+| | `longitude` | ✅ | ✅ |
 | | `altitude` | ✅ | ✅ |
-| | `GPSLatitudeRef` / `GPSLongitudeRef` | ❌ | ✅ |
-| **Device** | `Make` / `Model` | ❌* | ✅ |
+| | `GPSLatitude` | ❌ | ✅ |
+| | `GPSLongitude` | ❌ | ✅ |
+| | `GPSLatitudeRef` | ❌ | ✅ |
+| | `GPSLongitudeRef` | ❌ | ✅ |
+| | `GPSAltitude` | ❌ | ✅ |
+| | `GPSTimeStamp` | ❌ | ✅ |
+| | `GPSDateStamp` | ❌ | ✅ |
+| | `GPSSpeed` | ❌ | ✅ |
+| | `GPSSpeedRef` | ❌ | ✅ |
+| | `GPSProcessingMethod` | ❌ | ✅ |
+| **Device** | `Make` | ❌ | ✅ |
+| | `Model` | ❌ | ✅ |
 | | `Software` | ❌ | ✅ |
-| **Image** | `PixelXDimension` / `PixelYDimension` | ✅ | ❌ |
-| | `ImageWidth` / `ImageLength` | ❌ | ✅ |
+| | `ImageUniqueID` | ❌ | ✅ |
+| **Image** | `PixelXDimension` | ✅ | ❌ |
+| | `PixelYDimension` | ✅ | ❌ |
+| | `ImageWidth` | ❌ | ✅ |
+| | `ImageLength` | ❌ | ✅ |
+| | `Orientation` | ❌ | ✅ |
 | | `RotationDegrees` | ✅ | ✅ |
+| | `ColorSpace` | ✅ | ✅ |
+| | `ComponentsConfiguration` | ✅ | ✅ |
+| | `Compression` | ❌ | ✅ |
+| | `ResolutionUnit` | ❌ | ✅ |
+| | `XResolution` | ❌ | ✅ |
+| | `YResolution` | ❌ | ✅ |
+| | `YCbCrPositioning` | ❌ | ✅ |
+| **Time** | `DateTimeOriginal` | ✅ | ✅ |
+| | `DateTimeDigitized` | ✅ | ✅ |
+| | `DateTime` | ❌ | ✅ |
+| | `SubSecTimeOriginal` | ✅ | ✅ |
+| | `SubSecTimeDigitized` | ✅ | ✅ |
+| | `SubSecTime` | ❌ | ✅ |
+| | `OffsetTime` | ✅ | ❌ |
+| | `OffsetTimeOriginal` | ✅ | ❌ |
+| | `OffsetTimeDigitized` | ✅ | ❌ |
+| **Advanced** | `SceneCaptureType` | ✅ | ✅ |
+| | `SceneType` | ✅ | ❌ |
+| | `SensingMethod` | ✅ | ❌ |
+| | `SubjectArea` | ✅ | ❌ |
+| | `CustomRendered` | ✅ | ❌ |
+| | `UserComment` | ✅ | ❌ |
+| | `FlashPixVersion` | ✅ | ❌ |
+| | `ExifVersion` | ✅ | ✅ |
 
 > [!NOTE]  
-> \* On iOS, `Make` and `Model` are often encapsulated within the `LensModel` or `LensMake` fields depending on the capture library used.
-
----
-
-## 🛠 Usage Tips
-
-### Handling Rational Numbers (Android)
-Android often returns strings for numeric values (e.g., `"169/100"`). You can convert them to decimals like this:
-
-```javascript
-const parseRational = (rational) => {
-  if (typeof rational !== 'string') return rational;
-  const [num, den] = rational.split('/').map(Number);
-  return num / den;
-};
-
-const aperture = parseRational(exif.ApertureValue); // 1.69
+> - On iOS, some EXIF fields may differ in naming or structure compared to Android.  
+> - Device information such as `Make` and `Model` is often not directly exposed and may instead appear in fields like `LensMake` or `LensModel`, depending on the capture library.  
+> - GPS-related EXIF fields (`GPSLatitude`, `GPSLongitude`, etc.) are typically not included in raw form on iOS, and are instead provided as normalized values (`latitude`, `longitude`, `altitude`).  
+> - Field availability can vary based on the camera library (e.g., VisionCamera) and OS-level privacy or processing behavior.
 
 ---
 
