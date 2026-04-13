@@ -1,1 +1,1 @@
-{"version":3,"file":"getExifFromPath.d.ts","sourceRoot":"","sources":["../../../src/getExifFromPath.tsx"],"names":[],"mappings":"AAAA,wBAAsB,eAAe,CACnC,KAAK,EAAE,MAAM,GACZ,OAAO,CAAC,MAAM,CAAC,MAAM,EAAE,MAAM,GAAG,MAAM,CAAC,CAAC,CAI1C"}
+{"version":3,"file":"getExifFromPath.d.ts","sourceRoot":"","sources":["../../../src/getExifFromPath.tsx"],"names":[],"mappings":"AAAA,MAAM,MAAM,SAAS,GAAG,MAAM,GAAG,MAAM,GAAG,KAAK,CAAC,MAAM,GAAG,MAAM,CAAC,CAAC;AACjE,MAAM,MAAM,QAAQ,GAAG,MAAM,CAAC,MAAM,EAAE,SAAS,CAAC,CAAC;AAEjD,wBAAsB,eAAe,CACnC,KAAK,EAAE,MAAM,GACZ,OAAO,CAAC,QAAQ,CAAC,CAInB"}
