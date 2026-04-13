@@ -71,10 +71,10 @@ console.log(exif);
 | | `GPSSpeed` | ❌ | ✅ |
 | | `GPSSpeedRef` | ❌ | ✅ |
 | | `GPSProcessingMethod` | ❌ | ✅ |
-| **Device** | `Make` | ❌ | ✅ |
-| | `Model` | ❌ | ✅ |
-| | `Software` | ❌ | ✅ |
-| | `ImageUniqueID` | ❌ | ✅ |
+| **Device** | `Make` | ✅ | ✅ |
+| | `Model` | ✅ | ✅ |
+| | `Software` | ✅ | ✅ |
+| | `ImageUniqueID` | ✅ | ✅ |
 | **Image** | `PixelXDimension` | ✅ | ❌ |
 | | `PixelYDimension` | ✅ | ❌ |
 | | `ImageWidth` | ❌ | ✅ |
