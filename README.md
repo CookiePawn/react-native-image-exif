@@ -34,46 +34,59 @@ console.log(exif);
 
 ---
 
-## 📊 Example Output
+## 📊 Platform Data Comparison
 
-### 🤖 Android
+There are subtle differences in how iOS and Android represent EXIF data. Below is a comparison based on the same photo properties.
 
-```json
-{
-  "ApertureValue": 1.169925,
-  "BrightnessValue": 3.958998,
-  "DateTimeOriginal": "2026:04:13 16:19:20",
-  "FNumber": 1.5,
-  "FocalLength": 5.7,
-  "ISOSpeedRatings": [50],
-  "LensModel": "iPhone 13 Pro back camera 5.7mm f/1.5",
-  "PixelXDimension": 4224,
-  "PixelYDimension": 2376,
-  "RotationDegrees": 90,
-  "latitude": 37.342178,
-  "longitude": 127.107992,
-  "altitude": 70.842955
-}
-```
+### Data Format Differences
+
+| Tag Name | iOS Example | Android Example | Format Note |
+| :--- | :--- | :--- | :--- |
+| **ApertureValue** | `1.169925` (Number) | `"169/100"` (String) | Android returns rational strings. |
+| **FocalLength** | `5.7` (Number) | `"425/100"` (String) | Android returns rational strings. |
+| **GPS Latitude** | `37.342178` (Number) | `"37/1,20/1,313.../1000"` | iOS is decimal, Android is DMS. |
+| **GPS Longitude** | `127.107992` (Number) | `"127/1,6/1,290.../1000"` | iOS is decimal, Android is DMS. |
+| **ExifVersion** | `[2, 3, 2]` (Array) | `[2, 2, 0]` (Array) | Consistent as Array. |
+| **DateTime** | `"2026:04:13 16:37:31"` | `"2026:04:13 16:17:55"` | Consistent as String. |
 
 ---
 
-### 🍏 iOS
+### Field Support Matrix
 
-```json
-{
-  "ApertureValue": "169/100",
-  "DateTimeOriginal": "2026:04:13 16:17:55",
-  "FNumber": 1.8,
-  "FocalLength": "425/100",
-  "GPSLatitude": "37/1,20/1,313136520/10000000",
-  "GPSLatitudeRef": "N",
-  "GPSLongitude": "127/1,6/1,290196720/10000000",
-  "GPSLongitudeRef": "E",
-  "GPSAltitude": "855839/10000",
-  "RotationDegrees": 90
-}
-```
+| Category | Tag Name | iOS | Android |
+| :--- | :--- | :---: | :---: |
+| **Camera** | `FNumber` | ✅ | ✅ |
+| | `ExposureTime` | ✅ | ✅ |
+| | `ISOSpeedRatings` | ✅ | ✅ |
+| | `LensModel` | ✅ | ❌ |
+| | `Flash` | ✅ | ✅ |
+| **Location** | `latitude` / `longitude` | ✅ | ✅ |
+| | `altitude` | ✅ | ✅ |
+| | `GPSLatitudeRef` / `GPSLongitudeRef` | ❌ | ✅ |
+| **Device** | `Make` / `Model` | ❌* | ✅ |
+| | `Software` | ❌ | ✅ |
+| **Image** | `PixelXDimension` / `PixelYDimension` | ✅ | ❌ |
+| | `ImageWidth` / `ImageLength` | ❌ | ✅ |
+| | `RotationDegrees` | ✅ | ✅ |
+
+> [!NOTE]  
+> \* On iOS, `Make` and `Model` are often encapsulated within the `LensModel` or `LensMake` fields depending on the capture library used.
+
+---
+
+## 🛠 Usage Tips
+
+### Handling Rational Numbers (Android)
+Android often returns strings for numeric values (e.g., `"169/100"`). You can convert them to decimals like this:
+
+```javascript
+const parseRational = (rational) => {
+  if (typeof rational !== 'string') return rational;
+  const [num, den] = rational.split('/').map(Number);
+  return num / den;
+};
+
+const aperture = parseRational(exif.ApertureValue); // 1.69
 
 ---
 
