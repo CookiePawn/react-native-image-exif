@@ -34,7 +34,8 @@
   "scripts": {
     "example": "yarn workspace react-native-image-exif-example",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
-    "prepare": "bob build",
+    "prepare": "node ./scripts/verify-built.js",
+    "prepublishOnly": "node ./scripts/verify-built.js",
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest",
