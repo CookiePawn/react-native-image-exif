@@ -1,0 +1,1 @@
+{"version":3,"names":["ImageExif","getExifFromPath","path"],"sourceRoot":"../../src","sources":["getExifFromPath.native.tsx"],"mappings":";;AAAA,OAAOA,SAAS,MAAM,sBAAmB;AAEzC,OAAO,SAASC,eAAeA,CAC7BC,IAAY,EAC8B;EAC1C,OAAOF,SAAS,CAACC,eAAe,CAACC,IAAI,CAAC;AAGxC","ignoreList":[]}

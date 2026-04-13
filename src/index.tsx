@@ -1,0 +1,1 @@
+export { getExifFromPath } from './getExifFromPath';
