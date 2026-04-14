@@ -19,6 +19,9 @@ Extract EXIF metadata from images using native modules on iOS and Android.
 ```bash
 yarn add react-native-image-exif
 ```
+```bash
+cd ios && pod install && cd ../
+```
 
 ---
 
