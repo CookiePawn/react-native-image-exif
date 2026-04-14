@@ -1,6 +1,6 @@
 {
   "name": "react-native-image-exif",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Package for extracting image EXIF (metadata) in React Native",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
