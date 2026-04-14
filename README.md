@@ -7,7 +7,7 @@ Extract EXIF metadata from images using native modules on iOS and Android.
 ## ✨ Features
 
 * 📸 Read EXIF metadata from local image files
-* ⚡ Native performance (Swift + Kotlin)
+* ⚡ Native performance (Objective-C + Kotlin)
 * 🌍 GPS (latitude, longitude, altitude) support
 * 🔄 Cross-platform API (iOS & Android)
 * 🧩 Raw EXIF data included
