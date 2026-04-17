@@ -4,7 +4,7 @@
  *
  * @see README.md — Field Support Matrix
  */
-export type ExifValue = string | number | Array<string | number>;
+type ExifValue = string | number | Array<string | number>;
 
 /**
  * Metadata returned by `getExifFromPath`.
@@ -45,7 +45,7 @@ export type ExifData = {
 /**
  * Tags that README lists as **Android ✅ · iOS ❌** (raw GPS/device/dimensions, etc.).
  */
-export type ExifDataForAndroid = {
+type ExifDataForAndroid = {
   FocalLengthIn35mmFilm?: ExifValue;
   LightSource?: ExifValue;
   MaxApertureValue?: ExifValue;
@@ -85,7 +85,7 @@ export type ExifDataForAndroid = {
 /**
  * Tags that README lists as **iOS ✅ · Android ❌** (alternate names, IPTC-like, etc.).
  */
-export type ExifDataForIOS = {
+type ExifDataForIOS = {
   /** iOS ✅ · Android ❌ — same semantics as Android’s `FocalLengthIn35mmFilm` */
   FocalLenIn35mmFilm?: ExifValue;
 
