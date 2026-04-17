@@ -28,11 +28,23 @@ cd ios && pod install && cd ../
 ## 🚀 Usage
 
 ```ts
-import { getExifFromPath } from 'react-native-image-exif';
+import { getExifFromPath, type ExifData } from 'react-native-image-exif';
 
-const exif = await getExifFromPath(photo.path);
+const exif: ExifData = await getExifFromPath(photo.path);
 
 console.log(exif);
+```
+
+### TypeScript
+
+Import **`ExifData`** and use it for the return value: it already covers shared tags, optional platform-specific keys, and any extra EXIF tag via the index signature—no other types are required for normal use.
+
+```ts
+import { getExifFromPath, type ExifData } from 'react-native-image-exif';
+
+async function readPhotoMeta(uri: string): Promise<ExifData> {
+  return getExifFromPath(uri);
+}
 ```
 
 ---

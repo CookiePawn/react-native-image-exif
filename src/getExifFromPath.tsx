@@ -1,5 +1,4 @@
-export type ExifValue = string | number | Array<string | number>;
-export type ExifData = Record<string, ExifValue>;
+import type { ExifData } from './types';
 
 export async function getExifFromPath(
   _path: string

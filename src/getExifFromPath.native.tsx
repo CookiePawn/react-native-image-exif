@@ -1,10 +1,6 @@
 import ImageExif from './NativeImageExif';
+import type { ExifData } from './types';
 
-export type ExifValue = string | number | Array<string | number>;
-export type ExifData = Record<string, ExifValue>;
-
-export function getExifFromPath(
-  path: string
-): Promise<ExifData> {
-  return ImageExif.getExifFromPath(path) as Promise<ExifData>;
+export function getExifFromPath(path: string): Promise<ExifData> {
+  return ImageExif.getExifFromPath(path);
 }
