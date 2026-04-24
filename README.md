@@ -30,6 +30,7 @@ cd ios && pod install && cd ../
 ```ts
 import { getExifFromPath, ExifData } from 'react-native-image-exif';
 
+// photo.path should be a local file URI (e.g. "file:///...")
 const exif: ExifData = await getExifFromPath(photo.path);
 
 console.log(exif);
