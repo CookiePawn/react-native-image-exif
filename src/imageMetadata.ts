@@ -13,11 +13,14 @@ function asString(value: ExifValue | undefined): string | undefined {
 
 function asNumber(value: ExifValue | undefined): number | undefined {
   const first = firstValue(value);
-  if (typeof first === 'number') return Number.isFinite(first) ? first : undefined;
+  if (typeof first === 'number')
+    return Number.isFinite(first) ? first : undefined;
   if (typeof first !== 'string') return undefined;
 
   const text = first.trim();
-  const fraction = /^([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)$/.exec(text);
+  const fraction = /^([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)$/.exec(
+    text
+  );
   if (fraction) {
     const numerator = Number(fraction[1]);
     const denominator = Number(fraction[2]);
@@ -42,13 +45,11 @@ export function createImageMetadata(
   raw: RawExifData,
   platform: ImageMetadata['platform']
 ): ImageMetadata {
-  const {
-    latitude: _latitude,
-    longitude: _longitude,
-    altitude: _altitude,
-    RotationDegrees: _rotationDegrees,
-    ...rawTags
-  } = raw;
+  const rawTags = { ...raw };
+  delete rawTags.latitude;
+  delete rawTags.longitude;
+  delete rawTags.altitude;
+  delete rawTags.RotationDegrees;
   const camera = {
     make: asString(raw.Make),
     model: asString(raw.Model),
@@ -59,13 +60,14 @@ export function createImageMetadata(
     dateTimeDigitized: asString(raw.DateTimeDigitized),
   };
   const rotation = asNumber(raw.RotationDegrees);
+  const rotationDegrees: 0 | 90 | 180 | 270 | undefined =
+    rotation === 0 || rotation === 90 || rotation === 180 || rotation === 270
+      ? rotation
+      : undefined;
   const image = {
     width: asNumber(raw.ImageWidth) ?? asNumber(raw.PixelXDimension),
     height: asNumber(raw.ImageLength) ?? asNumber(raw.PixelYDimension),
-    rotationDegrees:
-      rotation === 0 || rotation === 90 || rotation === 180 || rotation === 270
-        ? rotation
-        : undefined,
+    rotationDegrees,
   };
   const location = {
     latitude: asNumber(raw.latitude),

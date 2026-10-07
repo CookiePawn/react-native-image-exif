@@ -8,9 +8,12 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
-import java.io.File
 import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.FileNotFoundException
+import java.io.FilterInputStream
 import java.io.IOException
+import java.io.InputStream
 import java.lang.reflect.Modifier
 import java.net.HttpURLConnection
 import java.net.URL
@@ -52,11 +55,7 @@ class ImageExifModule(reactContext: ReactApplicationContext) :
     return when (uri.scheme?.lowercase()) {
       null -> readFile(File(source), source)
       "file" -> readFile(File(requireNotNull(uri.path) { "Missing file path" }), source)
-      "content" -> {
-        reactApplicationContext.contentResolver.openFileDescriptor(uri, "r")?.use {
-          ExifInterface(it.fileDescriptor)
-        } ?: throw InvalidSourceException("E_SOURCE_UNREADABLE", "Could not open content URI: $source")
-      }
+      "content" -> readContentUri(uri, source)
       "http", "https" -> readRemoteUrl(source)
       else -> throw InvalidSourceException("E_UNSUPPORTED_URI", "Unsupported image URI scheme: ${uri.scheme}")
     }
@@ -71,6 +70,22 @@ class ImageExifModule(reactContext: ReactApplicationContext) :
   }
 
   @Throws(IOException::class, InvalidSourceException::class)
+  private fun readContentUri(uri: Uri, source: String): ExifInterface {
+    // Some document providers cannot expose a file descriptor but can still provide a stream.
+    try {
+      reactApplicationContext.contentResolver.openFileDescriptor(uri, "r")?.use {
+        return ExifInterface(it.fileDescriptor)
+      }
+    } catch (_: FileNotFoundException) {
+      // Fall through to openInputStream below.
+    }
+
+    return reactApplicationContext.contentResolver.openInputStream(uri)?.use {
+      SizeLimitedInputStream(it, MAX_INPUT_BYTES).use(::ExifInterface)
+    } ?: throw InvalidSourceException("E_SOURCE_UNREADABLE", "Could not open content URI: $source")
+  }
+
+  @Throws(IOException::class, InvalidSourceException::class)
   private fun readDataUri(source: String): ExifInterface {
     val separator = source.indexOf(',')
     if (separator < 0) {
@@ -81,6 +96,9 @@ class ImageExifModule(reactContext: ReactApplicationContext) :
       throw InvalidSourceException("E_INVALID_DATA_URI", "Only base64-encoded data URIs are supported")
     }
     val payload = source.substring(separator + 1)
+    if (payload.length > MAX_BASE64_PAYLOAD_CHARS) {
+      throw InvalidSourceException("E_INPUT_TOO_LARGE", "Base64 image exceeds $MAX_INPUT_BYTES bytes")
+    }
     val bytes = try {
       Base64.decode(payload, Base64.DEFAULT)
     } catch (e: IllegalArgumentException) {
@@ -89,25 +107,41 @@ class ImageExifModule(reactContext: ReactApplicationContext) :
     if (bytes.isEmpty()) {
       throw InvalidSourceException("E_INVALID_DATA_URI", "Data URI payload is empty")
     }
+    if (bytes.size > MAX_INPUT_BYTES) {
+      throw InvalidSourceException("E_INPUT_TOO_LARGE", "Base64 image exceeds $MAX_INPUT_BYTES bytes")
+    }
     return ByteArrayInputStream(bytes).use(::ExifInterface)
   }
 
   @Throws(IOException::class, InvalidSourceException::class)
   private fun readRemoteUrl(source: String): ExifInterface {
-    val connection = (URL(source).openConnection() as HttpURLConnection).apply {
-      connectTimeout = REMOTE_TIMEOUT_MS
-      readTimeout = REMOTE_TIMEOUT_MS
-      instanceFollowRedirects = true
-      requestMethod = "GET"
-    }
     try {
-      val status = connection.responseCode
-      if (status !in 200..299) {
-        throw InvalidSourceException("E_REMOTE_FETCH", "Could not fetch image (HTTP $status)")
+      val connection = (URL(source).openConnection() as HttpURLConnection).apply {
+        connectTimeout = REMOTE_TIMEOUT_MS
+        readTimeout = REMOTE_TIMEOUT_MS
+        instanceFollowRedirects = true
+        requestMethod = "GET"
       }
-      return connection.inputStream.use(::ExifInterface)
-    } finally {
-      connection.disconnect()
+      try {
+        val status = connection.responseCode
+        if (status !in 200..299) {
+          throw InvalidSourceException("E_REMOTE_FETCH", "Could not fetch image (HTTP $status)")
+        }
+        if (connection.contentLengthLong > MAX_INPUT_BYTES) {
+          throw InvalidSourceException("E_INPUT_TOO_LARGE", "Remote image exceeds $MAX_INPUT_BYTES bytes")
+        }
+        return connection.inputStream.use {
+          SizeLimitedInputStream(it, MAX_INPUT_BYTES).use(::ExifInterface)
+        }
+      } finally {
+        connection.disconnect()
+      }
+    } catch (e: InvalidSourceException) {
+      throw e
+    } catch (e: InputTooLargeException) {
+      throw InvalidSourceException("E_INPUT_TOO_LARGE", e.message ?: "Remote image is too large", e)
+    } catch (e: IOException) {
+      throw InvalidSourceException("E_REMOTE_FETCH", "Could not fetch remote image", e)
     }
   }
 
@@ -213,6 +247,8 @@ class ImageExifModule(reactContext: ReactApplicationContext) :
   companion object {
     const val NAME = NativeImageExifSpec.NAME
     private const val REMOTE_TIMEOUT_MS = 15_000
+    private const val MAX_INPUT_BYTES = 25 * 1024 * 1024
+    private const val MAX_BASE64_PAYLOAD_CHARS = (MAX_INPUT_BYTES * 4 / 3) + 4
 
     private val NUMBER_LITERAL_REGEX = Regex("""[-+]?\d+(\.\d+)?""")
 
@@ -245,6 +281,34 @@ class ImageExifModule(reactContext: ReactApplicationContext) :
         .toList()
     }
   }
+
+  private class SizeLimitedInputStream(
+    input: InputStream,
+    private val maxBytes: Int,
+  ) : FilterInputStream(input) {
+    private var bytesRead = 0L
+
+    override fun read(): Int {
+      val value = super.read()
+      if (value != -1) recordBytesRead(1)
+      return value
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+      val count = super.read(buffer, offset, length)
+      if (count > 0) recordBytesRead(count)
+      return count
+    }
+
+    private fun recordBytesRead(count: Int) {
+      bytesRead += count
+      if (bytesRead > maxBytes) {
+        throw InputTooLargeException("Image exceeds $maxBytes bytes")
+      }
+    }
+  }
+
+  private class InputTooLargeException(message: String) : IOException(message)
 
   private class InvalidSourceException(
     val code: String,

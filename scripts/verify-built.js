@@ -1,10 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const requiredFiles = [
-  'lib/module/index.js',
-  'lib/typescript/src/index.d.ts',
-];
+const requiredFiles = ['lib/module/index.js', 'lib/typescript/src/index.d.ts'];
 
 const missing = requiredFiles.filter((p) => {
   try {
@@ -16,7 +13,6 @@ const missing = requiredFiles.filter((p) => {
 });
 
 if (missing.length > 0) {
-  // eslint-disable-next-line no-console
   console.error(
     [
       'Build outputs are missing:',
@@ -27,4 +23,3 @@ if (missing.length > 0) {
   );
   process.exit(1);
 }
-

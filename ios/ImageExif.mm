@@ -4,6 +4,9 @@
 
 @implementation ImageExif
 
+static const NSUInteger kMaximumInputBytes = 25 * 1024 * 1024;
+static const NSUInteger kMaximumBase64PayloadCharacters = (kMaximumInputBytes * 4 / 3) + 4;
+
 static NSInteger rotationDegreesFromOrientation(NSInteger orientation)
 {
   switch (orientation) {
@@ -201,8 +204,8 @@ static double coordinateFromEXIFValue(id value, NSString *ref, BOOL isLatitude)
   configuration.timeoutIntervalForRequest = 15.0;
   configuration.timeoutIntervalForResource = 15.0;
   NSURLSession *session = [NSURLSession sessionWithConfiguration:configuration];
-  [[session dataTaskWithURL:url
-          completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+  [[session downloadTaskWithURL:url
+          completionHandler:^(NSURL *location, NSURLResponse *response, NSError *error) {
             if (error != nil) {
               reject(@"E_REMOTE_FETCH", error.localizedDescription, error);
               return;
@@ -215,11 +218,22 @@ static double coordinateFromEXIFValue(id value, NSString *ref, BOOL isLatitude)
               reject(@"E_REMOTE_FETCH", message, nil);
               return;
             }
-            if (data.length == 0) {
+            if (response.expectedContentLength > kMaximumInputBytes) {
+              reject(@"E_INPUT_TOO_LARGE", @"Remote image exceeds 26214400 bytes", nil);
+              return;
+            }
+            if (location == nil) {
               reject(@"E_REMOTE_FETCH", @"Remote image response is empty", nil);
               return;
             }
-            CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);
+            NSDictionary *attributes =
+                [[NSFileManager defaultManager] attributesOfItemAtPath:location.path error:nil];
+            NSNumber *fileSize = attributes[NSFileSize];
+            if (fileSize.unsignedLongLongValue > kMaximumInputBytes) {
+              reject(@"E_INPUT_TOO_LARGE", @"Remote image exceeds 26214400 bytes", nil);
+              return;
+            }
+            CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)location, NULL);
             if (!source) {
               reject(@"E_EXIF_READ", @"Could not open remote image", nil);
               return;
@@ -251,10 +265,18 @@ static double coordinateFromEXIFValue(id value, NSString *ref, BOOL isLatitude)
       return;
     }
     NSString *payload = [sourceString substringFromIndex:separator.location + 1];
+    if (payload.length > kMaximumBase64PayloadCharacters) {
+      reject(@"E_INPUT_TOO_LARGE", @"Base64 image exceeds 26214400 bytes", nil);
+      return;
+    }
     NSData *data = [[NSData alloc] initWithBase64EncodedString:payload
-                                                        options:NSDataBase64DecodingIgnoreUnknownCharacters];
+                                                        options:0];
     if (data.length == 0) {
       reject(@"E_INVALID_DATA_URI", @"Invalid or empty base64 image data", nil);
+      return;
+    }
+    if (data.length > kMaximumInputBytes) {
+      reject(@"E_INPUT_TOO_LARGE", @"Base64 image exceeds 26214400 bytes", nil);
       return;
     }
     CGImageSourceRef imageSource = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);

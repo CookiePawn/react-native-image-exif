@@ -104,7 +104,7 @@ const originalTimestamp = raw.DateTimeOriginal;
 
 `content://` is an Android ContentProvider mechanism and cannot be opened on iOS. Android access to a `content://` URI must still have been granted by its provider.
 
-Remote requests use 15-second timeout settings. The Android library manifest declares `INTERNET`; HTTP can still be blocked by the host app's network-security policy. On iOS, HTTP can be blocked by the host app's App Transport Security policy; prefer HTTPS.
+Remote requests use 15-second timeout settings. Remote and base64 inputs are limited to 25 MiB; oversized inputs reject with `E_INPUT_TOO_LARGE`. The Android library manifest declares `INTERNET`; HTTP can still be blocked by the host app's network-security policy. On iOS, HTTP can be blocked by the host app's App Transport Security policy; prefer HTTPS.
 
 Only base64-encoded Data URIs are supported. Prefix a raw base64 string before passing it to the library:
 
@@ -148,6 +148,7 @@ The promise rejects with one of these error codes when applicable:
 | `E_UNSUPPORTED_URI` | The URI scheme is unsupported on that platform. |
 | `E_SOURCE_UNREADABLE` | Android could not open the supplied `content://` URI. |
 | `E_INVALID_DATA_URI` | The Data URI is malformed, empty, or is not base64-encoded. |
+| `E_INPUT_TOO_LARGE` | The base64 or remote image exceeds the 25 MiB input limit. |
 | `E_REMOTE_FETCH` | Downloading a remote image failed or returned a non-2xx response. |
 | `E_EXIF_READ` | The image could not be opened or its metadata could not be read. |
 
