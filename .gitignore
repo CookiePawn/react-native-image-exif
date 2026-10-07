@@ -53,6 +53,9 @@ example/android/local.properties
 example/android/.idea/
 example/ios/build/
 example/ios/Pods/
+example/ios/.xcode.env.local
+example/ios/ImageExifExample.xcworkspace/
+example/ios/Podfile.lock
 
 # Metro / Watchman
 .metro-health-check*
