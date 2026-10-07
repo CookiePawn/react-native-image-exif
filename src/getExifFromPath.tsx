@@ -1,8 +1,8 @@
-import type { ExifData } from './types';
+import type { ImageMetadata } from './types';
 
 export async function getExifFromPath(
   _path: string
-): Promise<ExifData> {
+): Promise<ImageMetadata> {
   throw new Error(
     'react-native-image-exif: getExifFromPath is only available on native (iOS/Android)'
   );

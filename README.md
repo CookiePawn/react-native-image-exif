@@ -1,13 +1,8 @@
 # react-native-image-exif
 
-Read image EXIF metadata in React Native with `androidx.exifinterface` on Android and `ImageIO` on iOS.
+Read image metadata in React Native with native platform readers: `androidx.exifinterface` on Android and `ImageIO` on iOS.
 
-## Features
-
-- Read metadata from local files, remote URLs, and base64 Data URIs
-- Normalize GPS coordinates to decimal `latitude`, `longitude`, and `altitude`
-- Return image rotation as `RotationDegrees`
-- Support Android `content://` URIs
+`getExifFromPath()` returns one predictable result on both platforms: a small set of normalized fields for application code, and the native tags for device- or format-specific use.
 
 ## Installation
 
@@ -19,15 +14,82 @@ cd ios && pod install
 ## Usage
 
 ```ts
-import { getExifFromPath, type ExifData } from 'react-native-image-exif';
+import { getExifFromPath, type ImageMetadata } from 'react-native-image-exif';
 
-const exif: ExifData = await getExifFromPath('file:///path/to/photo.jpg');
+const metadata: ImageMetadata = await getExifFromPath(
+  'file:///path/to/photo.jpg'
+);
 
-console.log(exif.DateTimeOriginal);
-console.log(exif.latitude, exif.longitude);
+console.log(metadata.normalized.camera?.model);
+console.log(metadata.normalized.location?.latitude);
+console.log(metadata.raw.DateTimeOriginal);
 ```
 
-The function name is retained for compatibility, but its argument is an image **source**, not only a filesystem path.
+## Result shape
+
+```ts
+type ImageMetadata = {
+  schemaVersion: 1;
+  platform: 'ios' | 'android';
+  normalized: {
+    camera?: {
+      make?: string;
+      model?: string;
+      software?: string;
+    };
+    capture?: {
+      dateTimeOriginal?: string;
+      dateTimeDigitized?: string;
+    };
+    image?: {
+      width?: number;
+      height?: number;
+      rotationDegrees?: 0 | 90 | 180 | 270;
+    };
+    location?: {
+      latitude?: number;
+      longitude?: number;
+      altitude?: number;
+    };
+    exposure?: {
+      iso?: number;
+      exposureTimeSeconds?: number;
+      fNumber?: number;
+      focalLengthMm?: number;
+    };
+  };
+  raw: Record<string, string | number | Array<string | number>>;
+};
+```
+
+### `normalized`
+
+Use `normalized` for product features. These fields have a stable meaning regardless of platform:
+
+- GPS coordinates are decimal degrees and altitude is metres.
+- Exposure fractions such as `1/125` and `28/10` are converted to numbers only when their meaning is unambiguous.
+- `rotationDegrees` is `0`, `90`, `180`, or `270` when the platform supplies a valid image orientation.
+- EXIF capture timestamps remain strings. The library does not invent a timezone when the source image has none.
+
+Every field is optional. A missing value means the image or platform did not provide a value that can safely be normalized.
+
+### `raw`
+
+Use `raw` when your application needs a camera-vendor, OS, or image-format-specific tag. Keys retain the tag names provided by the native reader, such as `Make`, `Model`, `DateTimeOriginal`, `FNumber`, or `GPSLatitude`.
+
+Raw tags are intentionally not a cross-platform contract. Their presence, names, and representations can differ by camera, image editor, image format, operating-system version, and native metadata library version. Always check whether a key exists before using it.
+
+```ts
+const { normalized, raw } = await getExifFromPath(uri);
+
+// Preferred for normal app logic
+const latitude = normalized.location?.latitude;
+
+// Use only when a platform-specific tag is needed
+const originalTimestamp = raw.DateTimeOriginal;
+```
+
+`schemaVersion` changes only when the normalized-data contract makes a breaking change. It allows consumers to version their own handling safely.
 
 ## Supported sources
 
@@ -40,53 +102,40 @@ The function name is retained for compatibility, but its argument is an image **
 | HTTP URL | ✅* | ✅* | `http://example.com/photo.jpg` |
 | Base64 Data URI | ✅ | ✅ | `data:image/jpeg;base64,/9j/...` |
 
-`content://` is an Android ContentProvider mechanism and cannot be opened on iOS. On Android, access to a `content://` URI must still have been granted to the app by its provider.
+`content://` is an Android ContentProvider mechanism and cannot be opened on iOS. Android access to a `content://` URI must still have been granted by its provider.
 
-Remote requests have a 15-second timeout. The Android library manifest declares `INTERNET`; HTTP can still be blocked by the host app's network-security policy. On iOS, HTTP can be blocked by the host app's App Transport Security policy; prefer HTTPS.
+Remote requests use 15-second timeout settings. The Android library manifest declares `INTERNET`; HTTP can still be blocked by the host app's network-security policy. On iOS, HTTP can be blocked by the host app's App Transport Security policy; prefer HTTPS.
 
-Only base64-encoded Data URIs are supported. If you have a raw base64 string, add a media type and prefix before passing it to the library:
+Only base64-encoded Data URIs are supported. Prefix a raw base64 string before passing it to the library:
 
 ```ts
 const source = `data:image/jpeg;base64,${rawBase64}`;
-const exif = await getExifFromPath(source);
+const metadata = await getExifFromPath(source);
 ```
 
-## Returned data
+## Platform metadata
 
-`getExifFromPath` resolves to `ExifData`. Every EXIF tag is optional: cameras, image editors, transcoding, and privacy settings can remove or alter metadata.
+- **Android** obtains tags exposed by `ExifInterface`. It also derives decimal GPS values and `RotationDegrees`.
+- **iOS** obtains EXIF and TIFF dictionaries through ImageIO. TIFF commonly provides `Make`, `Model`, and `Software`. iOS derives decimal GPS values but does not include raw GPS tags in `raw`.
+- IPTC and XMP are not currently returned on iOS.
+- Android includes `RotationDegrees` even when it is `0`; iOS includes it only if the source image has an orientation property.
 
-The stable, cross-platform fields exposed by this library are:
+The image must be supported by the operating system's metadata reader. A valid image can have no metadata, producing an empty `normalized` object and a sparse `raw` object.
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `latitude` | `number` | Decimal degrees; present only when both latitude and longitude are available |
-| `longitude` | `number` | Decimal degrees; present only when both latitude and longitude are available |
-| `altitude` | `number` | Metres; negative when GPS altitude reference indicates below sea level |
-| `RotationDegrees` | `number` | Clockwise rotation derived from image orientation (`0`, `90`, `180`, or `270`) |
+## Migrating from 0.1.0
 
-Common EXIF keys such as `DateTimeOriginal`, `FNumber`, `ExposureTime`, `ISOSpeedRatings`, `FocalLength`, `Flash`, and `ColorSpace` are returned when the underlying platform exposes them. `ExifData` also has an index signature, so platform- or image-specific tags can be accessed without a separate type.
+This is a breaking API change. `getExifFromPath()` no longer returns tags at the top level.
 
 ```ts
+// Before
 const exif = await getExifFromPath(uri);
-
-if (exif.latitude !== undefined && exif.longitude !== undefined) {
-  console.log(`${exif.latitude}, ${exif.longitude}`);
-}
-
 console.log(exif.DateTimeOriginal);
-console.log(exif.Make); // Available when the image contains camera metadata.
+
+// Now
+const metadata = await getExifFromPath(uri);
+console.log(metadata.raw.DateTimeOriginal);
+console.log(metadata.normalized.capture?.dateTimeOriginal);
 ```
-
-### Platform differences
-
-The two native APIs do not expose an identical tag set or representation.
-
-- **Android** enumerates the tags available through `ExifInterface`. Plain numeric values are returned as numbers; rational values such as `1/125` stay strings. A small set of multi-value tags, including `ISOSpeedRatings` and `ComponentsConfiguration`, is returned as arrays.
-- **iOS** returns the ImageIO EXIF and TIFF dictionaries, plus normalized GPS coordinates and `RotationDegrees`. Camera fields such as `Make`, `Model`, and `Software` commonly come from TIFF. IPTC and XMP dictionaries are not currently returned.
-- iOS does not return raw `GPSLatitude` or `GPSLongitude`; use the normalized `latitude` and `longitude` fields instead.
-- `RotationDegrees` is always present on Android (including `0`). On iOS it is present only when the image contains an orientation property.
-
-Do not rely on an individual vendor tag being present on both platforms. If your application needs a particular tag, test it with representative images on every target platform.
 
 ## Errors
 
@@ -101,12 +150,6 @@ The promise rejects with one of these error codes when applicable:
 | `E_INVALID_DATA_URI` | The Data URI is malformed, empty, or is not base64-encoded. |
 | `E_REMOTE_FETCH` | Downloading a remote image failed or returned a non-2xx response. |
 | `E_EXIF_READ` | The image could not be opened or its metadata could not be read. |
-
-## Notes
-
-- The image format must be supported by the operating system's EXIF reader.
-- An image may be valid but contain no EXIF metadata; in that case the returned object can be empty (aside from Android's `RotationDegrees`).
-- Read EXIF before stripping metadata or re-encoding a selected image if you need capture-time or location information.
 
 ## License
 
