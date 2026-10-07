@@ -33,6 +33,9 @@
   ],
   "scripts": {
     "example": "yarn workspace react-native-image-exif-example",
+    "example:start": "npm run start --workspace=react-native-image-exif-example -- --reset-cache",
+    "example:android": "npm run android --workspace=react-native-image-exif-example",
+    "example:ios": "npm run ios --workspace=react-native-image-exif-example",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "build": "bob build",
     "prepare": "npm run build && node ./scripts/verify-built.js",
