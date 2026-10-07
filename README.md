@@ -1,201 +1,113 @@
 # react-native-image-exif
 
-Extract EXIF metadata from images using native modules on iOS and Android.
+Read image EXIF metadata in React Native with `androidx.exifinterface` on Android and `ImageIO` on iOS.
 
----
+## Features
 
-## ✨ Features
+- Read metadata from local files, remote URLs, and base64 Data URIs
+- Normalize GPS coordinates to decimal `latitude`, `longitude`, and `altitude`
+- Return image rotation as `RotationDegrees`
+- Support Android `content://` URIs
 
-* 📸 Read EXIF metadata from local image files
-* ⚡ Native performance (Objective-C + Kotlin)
-* 🌍 GPS (latitude, longitude, altitude) support
-* 🔄 Cross-platform API (iOS & Android)
-* 🧩 Raw EXIF data included
+## Installation
 
----
-
-## 📦 Installation
-
-```bash
+```sh
 yarn add react-native-image-exif
-```
-```bash
-cd ios && pod install && cd ../
+cd ios && pod install
 ```
 
----
-
-## 🚀 Usage
+## Usage
 
 ```ts
-import { getExifFromPath, ExifData } from 'react-native-image-exif';
+import { getExifFromPath, type ExifData } from 'react-native-image-exif';
 
-// photo.path should be a local file URI (e.g. "file:///...")
-const exif: ExifData = await getExifFromPath(photo.path);
+const exif: ExifData = await getExifFromPath('file:///path/to/photo.jpg');
 
-console.log(exif);
+console.log(exif.DateTimeOriginal);
+console.log(exif.latitude, exif.longitude);
 ```
 
-### TypeScript
+The function name is retained for compatibility, but its argument is an image **source**, not only a filesystem path.
 
-Import **`ExifData`** and use it for the return value: it already covers shared tags, optional platform-specific keys, and any extra EXIF tag via the index signature—no other types are required for normal use.
+## Supported sources
 
----
+| Source | Android | iOS | Example |
+| --- | :---: | :---: | --- |
+| Absolute local path | ✅ | ✅ | `/path/to/photo.jpg` |
+| File URI | ✅ | ✅ | `file:///path/to/photo.jpg` |
+| Content URI | ✅ | — | `content://media/...` |
+| HTTPS URL | ✅ | ✅ | `https://example.com/photo.jpg` |
+| HTTP URL | ✅* | ✅* | `http://example.com/photo.jpg` |
+| Base64 Data URI | ✅ | ✅ | `data:image/jpeg;base64,/9j/...` |
 
-## 📊 Platform Data Comparison
+`content://` is an Android ContentProvider mechanism and cannot be opened on iOS. On Android, access to a `content://` URI must still have been granted to the app by its provider.
 
-### Field Support Matrix
+Remote requests have a 15-second timeout. The Android library manifest declares `INTERNET`; HTTP can still be blocked by the host app's network-security policy. On iOS, HTTP can be blocked by the host app's App Transport Security policy; prefer HTTPS.
 
-| Category | Tag Name | iOS | Android |
-| :--- | :--- | :---: | :---: |
-| **Camera** | `FNumber` | ✅ | ✅ |
-| | `ExposureTime` | ✅ | ✅ |
-| | `ISOSpeedRatings` | ✅ | ✅ |
-| | `ApertureValue` | ✅ | ✅ |
-| | `FocalLength` | ✅ | ✅ |
-| | `FocalLengthIn35mmFilm` | ❌ | ✅ |
-| | `FocalLenIn35mmFilm` | ✅ | ❌ |
-| | `ExposureProgram` | ✅ | ✅ |
-| | `MeteringMode` | ✅ | ✅ |
-| | `Flash` | ✅ | ✅ |
-| | `LensModel` | ✅ | ❌ |
-| | `LensMake` | ✅ | ❌ |
-| | `LensSpecification` | ✅ | ❌ |
-| | `ExposureMode` | ✅ | ❌ |
-| | `ExposureBiasValue` | ✅ | ❌ |
-| | `BrightnessValue` | ✅ | ❌ |
-| | `LightSource` | ❌ | ✅ |
-| | `MaxApertureValue` | ❌ | ✅ |
-| **Location** | `latitude` | ✅ | ✅ |
-| | `longitude` | ✅ | ✅ |
-| | `altitude` | ✅ | ✅ |
-| | `GPSLatitude` | ❌ | ✅ |
-| | `GPSLongitude` | ❌ | ✅ |
-| | `GPSLatitudeRef` | ❌ | ✅ |
-| | `GPSLongitudeRef` | ❌ | ✅ |
-| | `GPSAltitude` | ❌ | ✅ |
-| | `GPSTimeStamp` | ❌ | ✅ |
-| | `GPSDateStamp` | ❌ | ✅ |
-| | `GPSSpeed` | ❌ | ✅ |
-| | `GPSSpeedRef` | ❌ | ✅ |
-| | `GPSProcessingMethod` | ❌ | ✅ |
-| **Device** | `Make` | ❌ | ✅ |
-| | `Model` | ❌ | ✅ |
-| | `Software` | ❌ | ✅ |
-| | `ImageUniqueID` | ❌ | ✅ |
-| **Image** | `PixelXDimension` | ✅ | ❌ |
-| | `PixelYDimension` | ✅ | ❌ |
-| | `ImageWidth` | ❌ | ✅ |
-| | `ImageLength` | ❌ | ✅ |
-| | `Orientation` | ❌ | ✅ |
-| | `RotationDegrees` | ✅ | ✅ |
-| | `ColorSpace` | ✅ | ✅ |
-| | `ComponentsConfiguration` | ✅ | ✅ |
-| | `Compression` | ❌ | ✅ |
-| | `ResolutionUnit` | ❌ | ✅ |
-| | `XResolution` | ❌ | ✅ |
-| | `YResolution` | ❌ | ✅ |
-| | `YCbCrPositioning` | ❌ | ✅ |
-| **Time** | `DateTimeOriginal` | ✅ | ✅ |
-| | `DateTimeDigitized` | ✅ | ✅ |
-| | `DateTime` | ❌ | ✅ |
-| | `SubSecTimeOriginal` | ✅ | ✅ |
-| | `SubSecTimeDigitized` | ✅ | ✅ |
-| | `SubSecTime` | ❌ | ✅ |
-| | `OffsetTime` | ✅ | ❌ |
-| | `OffsetTimeOriginal` | ✅ | ❌ |
-| | `OffsetTimeDigitized` | ✅ | ❌ |
-| **Advanced** | `SceneCaptureType` | ✅ | ✅ |
-| | `SceneType` | ✅ | ❌ |
-| | `SensingMethod` | ✅ | ❌ |
-| | `SubjectArea` | ✅ | ❌ |
-| | `CustomRendered` | ✅ | ❌ |
-| | `UserComment` | ✅ | ❌ |
-| | `FlashPixVersion` | ✅ | ❌ |
-| | `ExifVersion` | ✅ | ✅ |
-
-> [!NOTE]  
-> - On iOS, some EXIF fields may differ in naming or structure compared to Android.  
-> - Device information such as `Make` and `Model` is often not directly exposed and may instead appear in fields like `LensMake` or `LensModel`, depending on the capture library.  
-> - GPS-related EXIF fields (`GPSLatitude`, `GPSLongitude`, etc.) are typically not included in raw form on iOS, and are instead provided as normalized values (`latitude`, `longitude`, `altitude`).  
-> - Field availability can vary based on the camera library (e.g., VisionCamera) and OS-level privacy or processing behavior.
-
----
-
-## ⚠️ Platform Differences
-
-EXIF data is handled differently on each platform:
-
-### Android
-
-* Returns **parsed numeric values**
-* GPS is already converted to decimal format
+Only base64-encoded Data URIs are supported. If you have a raw base64 string, add a media type and prefix before passing it to the library:
 
 ```ts
-latitude: 37.342178
-longitude: 127.107992
+const source = `data:image/jpeg;base64,${rawBase64}`;
+const exif = await getExifFromPath(source);
 ```
 
----
+## Returned data
 
-### iOS
+`getExifFromPath` resolves to `ExifData`. Every EXIF tag is optional: cameras, image editors, transcoding, and privacy settings can remove or alter metadata.
 
-* Returns **raw EXIF values**
-* Many fields are **fractions (e.g. "169/100")**
-* GPS is returned in **DMS format**
+The stable, cross-platform fields exposed by this library are:
 
-```ts
-GPSLatitude: "37/1,20/1,313136520/10000000"
-```
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `latitude` | `number` | Decimal degrees; present only when both latitude and longitude are available |
+| `longitude` | `number` | Decimal degrees; present only when both latitude and longitude are available |
+| `altitude` | `number` | Metres; negative when GPS altitude reference indicates below sea level |
+| `RotationDegrees` | `number` | Clockwise rotation derived from image orientation (`0`, `90`, `180`, or `270`) |
 
----
-
-## 💡 Recommended: Normalize EXIF Data
-
-To ensure consistent results across platforms, you should normalize the output.
-
-### Example
+Common EXIF keys such as `DateTimeOriginal`, `FNumber`, `ExposureTime`, `ISOSpeedRatings`, `FocalLength`, `Flash`, and `ColorSpace` are returned when the underlying platform exposes them. `ExifData` also has an index signature, so platform- or image-specific tags can be accessed without a separate type.
 
 ```ts
-function parseFraction(value?: string | number): number | undefined {
-  if (typeof value === 'number') return value;
-  if (!value) return undefined;
+const exif = await getExifFromPath(uri);
 
-  if (value.includes('/')) {
-    const [num, den] = value.split('/').map(Number);
-    return den ? num / den : undefined;
-  }
-
-  return Number(value);
+if (exif.latitude !== undefined && exif.longitude !== undefined) {
+  console.log(`${exif.latitude}, ${exif.longitude}`);
 }
 
-function parseDMS(dms?: string, ref?: string): number | undefined {
-  if (!dms) return undefined;
-
-  const parts = dms.split(',').map(part => {
-    const [num, den] = part.split('/').map(Number);
-    return den ? num / den : 0;
-  });
-
-  const [deg, min, sec] = parts;
-  let result = deg + min / 60 + sec / 3600;
-
-  if (ref === 'S' || ref === 'W') result *= -1;
-
-  return result;
-}
+console.log(exif.DateTimeOriginal);
+console.log(exif.Make); // Available when Android ExifInterface exposes it.
 ```
 
----
+### Platform differences
 
-## 📌 Notes
+The two native APIs do not expose an identical tag set or representation.
 
-* `file://` paths are supported
-* Android supports `content://` URIs
-* Some EXIF fields may be missing depending on the image source
+- **Android** enumerates the tags available through `ExifInterface`. Plain numeric values are returned as numbers; rational values such as `1/125` stay strings. A small set of multi-value tags, including `ISOSpeedRatings` and `ComponentsConfiguration`, is returned as arrays.
+- **iOS** returns the ImageIO EXIF dictionary, plus normalized GPS coordinates and `RotationDegrees`. It does not currently merge TIFF, IPTC, or XMP dictionaries, so fields such as camera `Make` and `Model` are not guaranteed on iOS.
+- iOS does not return raw `GPSLatitude` or `GPSLongitude`; use the normalized `latitude` and `longitude` fields instead.
+- `RotationDegrees` is always present on Android (including `0`). On iOS it is present only when the image contains an orientation property.
 
----
+Do not rely on an individual vendor tag being present on both platforms. If your application needs a particular tag, test it with representative images on every target platform.
 
-## 📄 License
+## Errors
+
+The promise rejects with one of these error codes when applicable:
+
+| Code | Meaning |
+| --- | --- |
+| `E_INVALID_PATH` | The supplied source is empty. |
+| `E_FILE_NOT_FOUND` | The local path does not refer to a readable file. |
+| `E_UNSUPPORTED_URI` | The URI scheme is unsupported on that platform. |
+| `E_SOURCE_UNREADABLE` | Android could not open the supplied `content://` URI. |
+| `E_INVALID_DATA_URI` | The Data URI is malformed, empty, or is not base64-encoded. |
+| `E_REMOTE_FETCH` | Downloading a remote image failed or returned a non-2xx response. |
+| `E_EXIF_READ` | The image could not be opened or its metadata could not be read. |
+
+## Notes
+
+- The image format must be supported by the operating system's EXIF reader.
+- An image may be valid but contain no EXIF metadata; in that case the returned object can be empty (aside from Android's `RotationDegrees`).
+- Read EXIF before stripping metadata or re-encoding a selected image if you need capture-time or location information.
+
+## License
 
 MIT

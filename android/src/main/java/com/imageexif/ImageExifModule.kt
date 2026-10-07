@@ -1,5 +1,7 @@
 package com.imageexif
 
+import android.net.Uri
+import android.util.Base64
 import androidx.exifinterface.media.ExifInterface
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
@@ -7,29 +9,105 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 import java.io.File
+import java.io.ByteArrayInputStream
+import java.io.IOException
 import java.lang.reflect.Modifier
+import java.net.HttpURLConnection
+import java.net.URL
 
 class ImageExifModule(reactContext: ReactApplicationContext) :
   NativeImageExifSpec(reactContext) {
 
   override fun getExifFromPath(path: String, promise: Promise) {
     try {
-      val cleanPath = path.removePrefix("file://").trim()
-      if (cleanPath.isEmpty()) {
+      val source = path.trim()
+      if (source.isEmpty()) {
         promise.reject("E_INVALID_PATH", "Empty path")
         return
       }
-      val file = File(cleanPath)
-      if (!file.exists() || !file.isFile) {
-        promise.reject("E_FILE_NOT_FOUND", "File not found: $cleanPath")
-        return
-      }
 
-      val exif = ExifInterface(file)
+      val exif = readExif(source)
       val map = buildExifMap(exif)
       promise.resolve(map)
+    } catch (e: InvalidSourceException) {
+      promise.reject(e.code, e.message, e)
     } catch (e: Exception) {
       promise.reject("E_EXIF_READ", e.message, e)
+    }
+  }
+
+  /**
+   * Opens every Android source format accepted by the public JavaScript API.
+   *
+   * ExifInterface reads the supplied descriptor/stream synchronously, so resources can be
+   * closed as soon as its constructor returns.
+   */
+  @Throws(IOException::class, InvalidSourceException::class)
+  private fun readExif(source: String): ExifInterface {
+    if (source.startsWith("data:", ignoreCase = true)) {
+      return readDataUri(source)
+    }
+
+    val uri = Uri.parse(source)
+    return when (uri.scheme?.lowercase()) {
+      null -> readFile(File(source), source)
+      "file" -> readFile(File(requireNotNull(uri.path) { "Missing file path" }), source)
+      "content" -> {
+        reactApplicationContext.contentResolver.openFileDescriptor(uri, "r")?.use {
+          ExifInterface(it.fileDescriptor)
+        } ?: throw InvalidSourceException("E_SOURCE_UNREADABLE", "Could not open content URI: $source")
+      }
+      "http", "https" -> readRemoteUrl(source)
+      else -> throw InvalidSourceException("E_UNSUPPORTED_URI", "Unsupported image URI scheme: ${uri.scheme}")
+    }
+  }
+
+  @Throws(InvalidSourceException::class)
+  private fun readFile(file: File, source: String): ExifInterface {
+    if (!file.exists() || !file.isFile) {
+      throw InvalidSourceException("E_FILE_NOT_FOUND", "File not found: $source")
+    }
+    return ExifInterface(file)
+  }
+
+  @Throws(IOException::class, InvalidSourceException::class)
+  private fun readDataUri(source: String): ExifInterface {
+    val separator = source.indexOf(',')
+    if (separator < 0) {
+      throw InvalidSourceException("E_INVALID_DATA_URI", "Data URI is missing a payload")
+    }
+    val metadata = source.substring(0, separator)
+    if (!metadata.contains(";base64", ignoreCase = true)) {
+      throw InvalidSourceException("E_INVALID_DATA_URI", "Only base64-encoded data URIs are supported")
+    }
+    val payload = source.substring(separator + 1)
+    val bytes = try {
+      Base64.decode(payload, Base64.DEFAULT)
+    } catch (e: IllegalArgumentException) {
+      throw InvalidSourceException("E_INVALID_DATA_URI", "Invalid base64 image data", e)
+    }
+    if (bytes.isEmpty()) {
+      throw InvalidSourceException("E_INVALID_DATA_URI", "Data URI payload is empty")
+    }
+    return ByteArrayInputStream(bytes).use(::ExifInterface)
+  }
+
+  @Throws(IOException::class, InvalidSourceException::class)
+  private fun readRemoteUrl(source: String): ExifInterface {
+    val connection = (URL(source).openConnection() as HttpURLConnection).apply {
+      connectTimeout = REMOTE_TIMEOUT_MS
+      readTimeout = REMOTE_TIMEOUT_MS
+      instanceFollowRedirects = true
+      requestMethod = "GET"
+    }
+    try {
+      val status = connection.responseCode
+      if (status !in 200..299) {
+        throw InvalidSourceException("E_REMOTE_FETCH", "Could not fetch image (HTTP $status)")
+      }
+      return connection.inputStream.use(::ExifInterface)
+    } finally {
+      connection.disconnect()
     }
   }
 
@@ -134,6 +212,7 @@ class ImageExifModule(reactContext: ReactApplicationContext) :
 
   companion object {
     const val NAME = NativeImageExifSpec.NAME
+    private const val REMOTE_TIMEOUT_MS = 15_000
 
     private val NUMBER_LITERAL_REGEX = Regex("""[-+]?\d+(\.\d+)?""")
 
@@ -166,4 +245,10 @@ class ImageExifModule(reactContext: ReactApplicationContext) :
         .toList()
     }
   }
+
+  private class InvalidSourceException(
+    val code: String,
+    override val message: String,
+    cause: Throwable? = null,
+  ) : Exception(message, cause)
 }

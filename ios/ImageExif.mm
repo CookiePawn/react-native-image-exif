@@ -114,32 +114,11 @@ static double coordinateFromEXIFValue(id value, NSString *ref, BOOL isLatitude)
   return coord;
 }
 
-- (void)getExifFromPath:(NSString *)path
-                resolve:(RCTPromiseResolveBlock)resolve
-                 reject:(RCTPromiseRejectBlock)reject
+// Takes ownership of source and always releases it before returning.
+- (void)resolveExifFromImageSource:(CGImageSourceRef)source
+                            resolve:(RCTPromiseResolveBlock)resolve
+                             reject:(RCTPromiseRejectBlock)reject
 {
-  NSString *cleanPath = path;
-  if ([cleanPath hasPrefix:@"file://"]) {
-    cleanPath = [cleanPath substringFromIndex:7];
-  }
-  cleanPath = [cleanPath stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-  if (cleanPath.length == 0) {
-    reject(@"E_INVALID_PATH", @"Empty path", nil);
-    return;
-  }
-  BOOL isDir = NO;
-  if (![[NSFileManager defaultManager] fileExistsAtPath:cleanPath isDirectory:&isDir] || isDir) {
-    reject(@"E_FILE_NOT_FOUND", [NSString stringWithFormat:@"File not found: %@", cleanPath], nil);
-    return;
-  }
-
-  NSURL *url = [NSURL fileURLWithPath:cleanPath];
-  CGImageSourceRef source = CGImageSourceCreateWithURL((__bridge CFURLRef)url, NULL);
-  if (!source) {
-    reject(@"E_EXIF_READ", @"Could not open image", nil);
-    return;
-  }
-
   @try {
     NSDictionary *props =
         (__bridge_transfer NSDictionary *)CGImageSourceCopyPropertiesAtIndex(source, 0, NULL);
@@ -197,6 +176,110 @@ static double coordinateFromEXIFValue(id value, NSString *ref, BOOL isLatitude)
   } @catch (NSException *exception) {
     reject(@"E_EXIF_READ", exception.reason, nil);
   }
+}
+
+- (void)readRemoteURL:(NSURL *)url
+              resolve:(RCTPromiseResolveBlock)resolve
+               reject:(RCTPromiseRejectBlock)reject
+{
+  NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+  configuration.timeoutIntervalForRequest = 15.0;
+  configuration.timeoutIntervalForResource = 15.0;
+  NSURLSession *session = [NSURLSession sessionWithConfiguration:configuration];
+  [[session dataTaskWithURL:url
+          completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+            if (error != nil) {
+              reject(@"E_REMOTE_FETCH", error.localizedDescription, error);
+              return;
+            }
+            NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
+            if (![response isKindOfClass:[NSHTTPURLResponse class]] ||
+                httpResponse.statusCode < 200 || httpResponse.statusCode >= 300) {
+              NSString *message = [NSString stringWithFormat:@"Could not fetch image (HTTP %ld)",
+                                                           (long)httpResponse.statusCode];
+              reject(@"E_REMOTE_FETCH", message, nil);
+              return;
+            }
+            if (data.length == 0) {
+              reject(@"E_REMOTE_FETCH", @"Remote image response is empty", nil);
+              return;
+            }
+            CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);
+            if (!source) {
+              reject(@"E_EXIF_READ", @"Could not open remote image", nil);
+              return;
+            }
+            [self resolveExifFromImageSource:source resolve:resolve reject:reject];
+          }] resume];
+}
+
+- (void)getExifFromPath:(NSString *)path
+                resolve:(RCTPromiseResolveBlock)resolve
+                 reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *sourceString =
+      [path stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+  if (sourceString.length == 0) {
+    reject(@"E_INVALID_PATH", @"Empty path", nil);
+    return;
+  }
+
+  if ([sourceString hasPrefix:@"data:"]) {
+    NSRange separator = [sourceString rangeOfString:@","];
+    if (separator.location == NSNotFound) {
+      reject(@"E_INVALID_DATA_URI", @"Data URI is missing a payload", nil);
+      return;
+    }
+    NSString *metadata = [sourceString substringToIndex:separator.location];
+    if ([metadata rangeOfString:@";base64" options:NSCaseInsensitiveSearch].location == NSNotFound) {
+      reject(@"E_INVALID_DATA_URI", @"Only base64-encoded data URIs are supported", nil);
+      return;
+    }
+    NSString *payload = [sourceString substringFromIndex:separator.location + 1];
+    NSData *data = [[NSData alloc] initWithBase64EncodedString:payload
+                                                        options:NSDataBase64DecodingIgnoreUnknownCharacters];
+    if (data.length == 0) {
+      reject(@"E_INVALID_DATA_URI", @"Invalid or empty base64 image data", nil);
+      return;
+    }
+    CGImageSourceRef imageSource = CGImageSourceCreateWithData((__bridge CFDataRef)data, NULL);
+    if (!imageSource) {
+      reject(@"E_EXIF_READ", @"Could not open base64 image", nil);
+      return;
+    }
+    [self resolveExifFromImageSource:imageSource resolve:resolve reject:reject];
+    return;
+  }
+
+  NSURL *url = [NSURL URLWithString:sourceString];
+  NSString *scheme = url.scheme.lowercaseString;
+  if ([scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"]) {
+    [self readRemoteURL:url resolve:resolve reject:reject];
+    return;
+  }
+  if ([scheme isEqualToString:@"content"]) {
+    reject(@"E_UNSUPPORTED_URI", @"content:// URIs are only supported on Android", nil);
+    return;
+  }
+  if (scheme != nil && ![scheme isEqualToString:@"file"]) {
+    reject(@"E_UNSUPPORTED_URI",
+           [NSString stringWithFormat:@"Unsupported image URI scheme: %@", scheme], nil);
+    return;
+  }
+
+  NSString *filePath = [scheme isEqualToString:@"file"] ? url.path : sourceString;
+  BOOL isDir = NO;
+  if (![[NSFileManager defaultManager] fileExistsAtPath:filePath isDirectory:&isDir] || isDir) {
+    reject(@"E_FILE_NOT_FOUND", [NSString stringWithFormat:@"File not found: %@", sourceString], nil);
+    return;
+  }
+  NSURL *fileURL = [NSURL fileURLWithPath:filePath];
+  CGImageSourceRef imageSource = CGImageSourceCreateWithURL((__bridge CFURLRef)fileURL, NULL);
+  if (!imageSource) {
+    reject(@"E_EXIF_READ", @"Could not open image", nil);
+    return;
+  }
+  [self resolveExifFromImageSource:imageSource resolve:resolve reject:reject];
 }
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
