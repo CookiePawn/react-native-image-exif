@@ -87,6 +87,20 @@ static id normalizeExifValue(id value)
   return fallback.length > 0 ? fallback : nil;
 }
 
+static void addNormalizedMetadata(NSMutableDictionary *result, NSDictionary *metadata)
+{
+  for (NSString *key in metadata) {
+    // EXIF values are added before TIFF values and take precedence on a collision.
+    if (result[key] != nil) {
+      continue;
+    }
+    id normalized = normalizeExifValue(metadata[key]);
+    if (normalized != nil) {
+      result[key] = normalized;
+    }
+  }
+}
+
 static double coordinateFromEXIFValue(id value, NSString *ref, BOOL isLatitude)
 {
   double coord = NAN;
@@ -133,13 +147,14 @@ static double coordinateFromEXIFValue(id value, NSString *ref, BOOL isLatitude)
 
     NSDictionary *exif = props[(NSString *)kCGImagePropertyExifDictionary];
     if (exif) {
-      for (NSString *key in exif) {
-        id raw = exif[key];
-        id normalized = normalizeExifValue(raw);
-        if (normalized != nil) {
-          result[key] = normalized;
-        }
-      }
+      addNormalizedMetadata(result, exif);
+    }
+
+    // Camera make, model, and software normally live in the TIFF dictionary,
+    // rather than the EXIF dictionary.
+    NSDictionary *tiff = props[(NSString *)kCGImagePropertyTIFFDictionary];
+    if (tiff) {
+      addNormalizedMetadata(result, tiff);
     }
 
     NSNumber *orientation = props[(NSString *)kCGImagePropertyOrientation];

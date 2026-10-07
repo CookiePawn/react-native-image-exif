@@ -74,7 +74,7 @@ if (exif.latitude !== undefined && exif.longitude !== undefined) {
 }
 
 console.log(exif.DateTimeOriginal);
-console.log(exif.Make); // Available when Android ExifInterface exposes it.
+console.log(exif.Make); // Available when the image contains camera metadata.
 ```
 
 ### Platform differences
@@ -82,7 +82,7 @@ console.log(exif.Make); // Available when Android ExifInterface exposes it.
 The two native APIs do not expose an identical tag set or representation.
 
 - **Android** enumerates the tags available through `ExifInterface`. Plain numeric values are returned as numbers; rational values such as `1/125` stay strings. A small set of multi-value tags, including `ISOSpeedRatings` and `ComponentsConfiguration`, is returned as arrays.
-- **iOS** returns the ImageIO EXIF dictionary, plus normalized GPS coordinates and `RotationDegrees`. It does not currently merge TIFF, IPTC, or XMP dictionaries, so fields such as camera `Make` and `Model` are not guaranteed on iOS.
+- **iOS** returns the ImageIO EXIF and TIFF dictionaries, plus normalized GPS coordinates and `RotationDegrees`. Camera fields such as `Make`, `Model`, and `Software` commonly come from TIFF. IPTC and XMP dictionaries are not currently returned.
 - iOS does not return raw `GPSLatitude` or `GPSLongitude`; use the normalized `latitude` and `longitude` fields instead.
 - `RotationDegrees` is always present on Android (including `0`). On iOS it is present only when the image contains an orientation property.
 

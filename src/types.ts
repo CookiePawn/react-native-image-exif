@@ -2,7 +2,7 @@
  * A single EXIF field value after normalization (strings, numbers, or small tuples).
  * Unknown or platform-specific tags still match this shape.
  *
- * @see README.md — Field Support Matrix
+ * @see README.md — Returned data
  */
 type ExifValue = string | number | Array<string | number>;
 
@@ -33,6 +33,10 @@ export type ExifData = {
   ExifVersion?: ExifValue;
   ColorSpace?: ExifValue;
   ComponentsConfiguration?: ExifValue;
+  /** Camera metadata; commonly sourced from iOS TIFF metadata. */
+  Make?: ExifValue;
+  Model?: ExifValue;
+  Software?: ExifValue;
 
   DateTimeOriginal?: ExifValue;
   DateTimeDigitized?: ExifValue;
@@ -62,9 +66,6 @@ type ExifDataForAndroid = {
   GPSSpeedRef?: ExifValue;
   GPSProcessingMethod?: ExifValue;
 
-  Make?: ExifValue;
-  Model?: ExifValue;
-  Software?: ExifValue;
   ImageUniqueID?: ExifValue;
 
   ImageWidth?: ExifValue;
