@@ -48,6 +48,7 @@ example/node_modules/
 example/android/.gradle/
 example/android/build/
 example/android/app/build/
+example/android/app/.cxx/
 example/android/local.properties
 example/android/.idea/
 example/ios/build/
